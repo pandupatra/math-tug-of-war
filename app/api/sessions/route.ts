@@ -1,9 +1,22 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
+import { z } from "zod";
 import { generateMathProblem } from "@/lib/math";
+import { sanitizePlayerName } from "@/lib/player";
 import { supabaseServer } from "@/lib/supabase/server";
 
-export async function POST() {
+const bodySchema = z.object({
+  name: z.string()
+});
+
+export async function POST(req: Request) {
+  const json = await req.json().catch(() => null);
+  const parsed = bodySchema.safeParse(json);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+  }
+
+  const playerName = sanitizePlayerName(parsed.data.name);
   const player1Token = randomUUID();
   const problem = generateMathProblem();
 
@@ -11,6 +24,7 @@ export async function POST() {
     .from("game_sessions")
     .insert({
       player1_token: player1Token,
+      player1_name: playerName,
       current_problem: problem,
       status: "waiting",
       rope_position: 50,

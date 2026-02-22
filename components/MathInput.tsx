@@ -28,9 +28,9 @@ export function MathInput({ problem, disabled = false, onSubmit }: MathInputProp
 
   return (
     <form onSubmit={handleSubmit} className="chalk-panel rounded-2xl p-5">
-      <p className="mb-4 text-sm text-white/80">Answer fast. No calculators. No mercy. No emotional support fractions.</p>
+      <p className="mb-4 text-sm text-slate-100">Answer fast. No calculators. No mercy. No emotional support fractions.</p>
 
-      <div className="math-glow mb-4 rounded-lg border border-white/15 bg-[#07111f]/65 px-4 py-5 text-center text-3xl font-black tracking-wide text-[#2fe8ff]">
+      <div className="math-glow mb-4 rounded-lg border-2 border-yellow-300 bg-slate-900 px-4 py-5 text-center text-3xl font-black tracking-wide text-cyan-300">
         {problem.text}
       </div>
 
@@ -42,13 +42,13 @@ export function MathInput({ problem, disabled = false, onSubmit }: MathInputProp
           onChange={(event) => setAnswer(event.target.value)}
           placeholder="Type your genius"
           disabled={disabled || submitting}
-          className="w-full rounded-lg border border-white/25 bg-black/40 px-3 py-2 outline-none ring-[#2fe8ff] focus:ring disabled:opacity-60"
+          className="w-full rounded-lg border-2 border-cyan-300 bg-slate-800 px-3 py-2 text-slate-100 outline-none ring-cyan-300 focus:ring disabled:opacity-60"
         />
 
         <button
           type="submit"
           disabled={disabled || submitting}
-          className="wiggle-on-hover rounded-lg bg-[#ffd84d] px-4 py-2 font-black text-black transition hover:brightness-95 disabled:opacity-60"
+          className="wiggle-on-hover rounded-lg border-2 border-yellow-200 bg-yellow-400 px-4 py-2 font-black text-slate-900 transition hover:bg-yellow-300 disabled:opacity-60"
         >
           {submitting ? "Firing..." : "Yank"}
         </button>

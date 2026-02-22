@@ -4,29 +4,21 @@
 
 :root {
   color-scheme: dark;
-  --bg-ink: #061321;
-  --bg-panel: rgba(10, 24, 40, 0.82);
-  --line-neon: #ffd84d;
-  --line-fun: #2fe8ff;
+  --bg-base: #111827;
+  --panel-base: #1f2937;
+  --panel-ink: #0f172a;
+  --line-neon: #facc15;
+  --line-fun: #22d3ee;
+  --line-pop: #fb7185;
+  --text-main: #f8fafc;
 }
 
 body {
-  @apply text-white antialiased;
+  @apply antialiased;
   font-family: var(--font-body), sans-serif;
-  background-image:
-    linear-gradient(135deg, rgba(6, 19, 33, 0.95) 0%, rgba(9, 31, 43, 0.93) 100%),
-    url("/math-bg.jpg");
-  background-size: cover, cover;
-  background-position: center, center;
-  background-attachment: fixed, fixed;
-  background-blend-mode: multiply;
+  color: var(--text-main);
+  background-color: var(--bg-base);
   min-height: 100vh;
-}
-
-@media (max-width: 768px) {
-  body {
-    background-attachment: scroll, scroll;
-  }
 }
 
 .fun-title {
@@ -36,16 +28,13 @@ body {
 }
 
 .chalk-panel {
-  background: var(--bg-panel);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(10px);
+  background: var(--panel-base);
+  border: 3px solid var(--line-neon);
+  box-shadow: 0 8px 0 var(--panel-ink);
 }
 
 .math-glow {
-  text-shadow:
-    0 0 10px rgba(47, 232, 255, 0.5),
-    0 0 18px rgba(255, 216, 77, 0.26);
+  text-shadow: 2px 2px 0 var(--panel-ink);
 }
 
 .wiggle-on-hover {
@@ -70,6 +59,10 @@ body {
 
 .floaty {
   animation: floaty 2.2s ease-in-out infinite;
+}
+
+.text-warning {
+  color: #fca5a5;
 }
 
 input[type="number"]::-webkit-inner-spin-button,

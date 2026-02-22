@@ -8,14 +8,54 @@ create table if not exists public.game_sessions (
   step_size integer not null default 5 check (step_size between 1 and 20),
   winner smallint check (winner in (1, 2)),
   player1_token text not null,
+  player1_name text not null,
   player2_token text,
+  player2_name text,
   current_problem jsonb not null,
   version bigint not null default 0,
+  finished_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
+alter table public.game_sessions add column if not exists player1_name text;
+alter table public.game_sessions add column if not exists player2_name text;
+alter table public.game_sessions add column if not exists finished_at timestamptz;
+
+update public.game_sessions
+set player1_name = coalesce(player1_name, 'Player 1')
+where player1_name is null;
+
+alter table public.game_sessions
+  alter column player1_name set not null;
+
 create index if not exists idx_game_sessions_status on public.game_sessions(status);
+
+create table if not exists public.daily_leaderboard (
+  day date not null,
+  player_name text not null,
+  wins integer not null default 0,
+  losses integer not null default 0,
+  matches integer not null default 0,
+  updated_at timestamptz not null default now(),
+  primary key (day, player_name)
+);
+
+create or replace function public.touch_daily_leaderboard_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_touch_daily_leaderboard_updated_at on public.daily_leaderboard;
+create trigger trg_touch_daily_leaderboard_updated_at
+before update on public.daily_leaderboard
+for each row
+execute function public.touch_daily_leaderboard_updated_at();
 
 create or replace function public.touch_game_sessions_updated_at()
 returns trigger
@@ -94,11 +134,17 @@ begin
 end;
 $$;
 
-create type public.answer_result as (
-  accepted boolean,
-  reason text,
-  session public.game_sessions
-);
+do $$
+begin
+  create type public.answer_result as (
+    accepted boolean,
+    reason text,
+    session public.game_sessions
+  );
+exception
+  when duplicate_object then null;
+end
+$$;
 
 create or replace function public.attempt_answer(
   p_session_id uuid,
@@ -114,6 +160,9 @@ declare
   expected integer;
   delta integer;
   next_problem jsonb;
+  winner_name text;
+  loser_name text;
+  day_key date;
   out_row public.answer_result;
 begin
   select * into s
@@ -168,11 +217,14 @@ begin
   if s.rope_position = 100 then
     s.status := 'finished';
     s.winner := 1;
+    s.finished_at := now();
   elsif s.rope_position = 0 then
     s.status := 'finished';
     s.winner := 2;
+    s.finished_at := now();
   else
     s.winner := null;
+    s.finished_at := null;
   end if;
 
   next_problem := public.generate_math_problem();
@@ -184,9 +236,41 @@ begin
     version = s.version,
     status = s.status,
     winner = s.winner,
+    finished_at = s.finished_at,
     current_problem = s.current_problem
   where id = s.id
   returning * into s;
+
+  if s.status = 'finished' and s.winner is not null then
+    day_key := (now() at time zone 'UTC')::date;
+    if s.winner = 1 then
+      winner_name := s.player1_name;
+      loser_name := s.player2_name;
+    else
+      winner_name := s.player2_name;
+      loser_name := s.player1_name;
+    end if;
+
+    if winner_name is not null then
+      insert into public.daily_leaderboard (day, player_name, wins, losses, matches)
+      values (day_key, winner_name, 1, 0, 1)
+      on conflict (day, player_name)
+      do update
+      set
+        wins = public.daily_leaderboard.wins + 1,
+        matches = public.daily_leaderboard.matches + 1;
+    end if;
+
+    if loser_name is not null then
+      insert into public.daily_leaderboard (day, player_name, wins, losses, matches)
+      values (day_key, loser_name, 0, 1, 1)
+      on conflict (day, player_name)
+      do update
+      set
+        losses = public.daily_leaderboard.losses + 1,
+        matches = public.daily_leaderboard.matches + 1;
+    end if;
+  end if;
 
   out_row.accepted := true;
   out_row.reason := 'ok';
@@ -222,12 +306,14 @@ begin
   s.winner := null;
   s.version := s.version + 1;
   s.current_problem := public.generate_math_problem();
+  s.finished_at := null;
   s.status := case when s.player2_token is null then 'waiting' else 'active' end;
 
   update public.game_sessions
   set
     rope_position = s.rope_position,
     winner = s.winner,
+    finished_at = s.finished_at,
     version = s.version,
     status = s.status,
     current_problem = s.current_problem
@@ -242,3 +328,4 @@ alter table public.game_sessions replica identity full;
 
 -- Demo-friendly defaults: APIs use service-role credentials, and clients subscribe to updates.
 alter table public.game_sessions disable row level security;
+alter table public.daily_leaderboard disable row level security;

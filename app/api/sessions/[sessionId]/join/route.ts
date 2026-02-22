@@ -1,12 +1,24 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
+import { z } from "zod";
+import { sanitizePlayerName } from "@/lib/player";
 import { supabaseServer } from "@/lib/supabase/server";
 
+const bodySchema = z.object({
+  name: z.string()
+});
+
 export async function POST(
-  _: Request,
+  req: Request,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const { sessionId } = await params;
+  const json = await req.json().catch(() => null);
+  const parsed = bodySchema.safeParse(json);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+  }
+  const playerName = sanitizePlayerName(parsed.data.name);
 
   const { data: existing, error: readError } = await supabaseServer
     .from("game_sessions")
@@ -26,7 +38,7 @@ export async function POST(
 
   const { data, error } = await supabaseServer
     .from("game_sessions")
-    .update({ player2_token: player2Token, status: "active", version: 1 })
+    .update({ player2_token: player2Token, player2_name: playerName, status: "active", version: 1 })
     .eq("id", sessionId)
     .is("player2_token", null)
     .select("*")
